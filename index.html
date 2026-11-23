@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story of Seasons: Grand Bazaar - Gift Finder</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fdf6ec;
+    color: #3a2c1a;
+  }
+  h1 {
+    font-size: 1.5em;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: #6b5a42;
+    margin-bottom: 20px;
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 8px 16px;
+    border: 1px solid #c9a876;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .tab.active {
+    background: #c9a876;
+    color: #fff;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1em;
+    border: 1px solid #c9a876;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  select {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1em;
+    border: 1px solid #c9a876;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  .panel {
+    display: none;
+  }
+  .panel.active {
+    display: block;
+  }
+  .result-card {
+    background: #fff;
+    border: 1px solid #e3d5bb;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 12px;
+  }
+  .result-card h3 {
+    margin: 0 0 6px 0;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-right: 6px;
+  }
+  .tag-favourite { background: #f7c548; color: #3a2c1a; }
+  .tag-loves { background: #e97451; color: #fff; }
+  .tag-likes { background: #a3c585; color: #243123; }
+  .section {
+    margin: 6px 0;
+  }
+  .section-label {
+    font-weight: bold;
+    margin-right: 6px;
+  }
+  .no-results {
+    color: #6b5a42;
+    margin-top: 12px;
+  }
+  .source-note {
+    margin-top: 30px;
+    font-size: 0.85em;
+    color: #8a7a60;
+    border-top: 1px solid #e3d5bb;
+    padding-top: 10px;
+  }
+  .source-note a {
+    color: #8a7a60;
+  }
+  .disclaimer {
+    font-size: 0.85em;
+    color: #8a7a60;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+<h1>Story of Seasons: Grand Bazaar - Gift Finder</h1>
+<p class="subtitle">Favourite, Loves and Likes for the 12 marriage candidates.</p>
+<p class="disclaimer">Covers the 12 marriage candidates only. Does not cover non-romanceable villagers. Data may predate game patches.</p>
+
+<div class="tabs">
+  <div class="tab active" id="tab-item" onclick="showPanel('item')">Search by item</div>
+  <div class="tab" id="tab-candidate" onclick="showPanel('candidate')">Browse by candidate</div>
+</div>
+
+<div class="panel active" id="panel-item">
+  <input type="text" id="item-input" placeholder="Type an item, e.g. Chocolate" autocomplete="off">
+  <div id="item-results"></div>
+</div>
+
+<div class="panel" id="panel-candidate">
+  <select id="candidate-select"></select>
+  <div id="candidate-results"></div>
+</div>
+
+<div class="source-note" id="source-note"></div>
+
+<script src="data.js"></script>
+<script>
+
+function showPanel(name) {
+  document.getElementById('panel-item').classList.toggle('active', name === 'item');
+  document.getElementById('panel-candidate').classList.toggle('active', name === 'candidate');
+  document.getElementById('tab-item').classList.toggle('active', name === 'item');
+  document.getElementById('tab-candidate').classList.toggle('active', name === 'candidate');
+}
+
+function normalize(s) {
+  return s.toLowerCase().trim();
+}
+
+function findMatches(query) {
+  const q = normalize(query);
+  if (!q) return [];
+  const matches = [];
+  for (const c of CANDIDATES) {
+    const hit = { name: c.name, tiers: [] };
+    if (c.favourite.some(function (i) { return normalize(i).includes(q); })) {
+      hit.tiers.push({ label: 'Favourite', cls: 'tag-favourite' });
+    }
+    if (c.loves.some(function (i) { return normalize(i).includes(q); })) {
+      hit.tiers.push({ label: 'Loves', cls: 'tag-loves' });
+    }
+    if (c.likes.some(function (i) { return normalize(i).includes(q); })) {
+      hit.tiers.push({ label: 'Likes', cls: 'tag-likes' });
+    }
+    if (c.likesCategory && normalize(c.likesCategory).includes(q)) {
+      hit.tiers.push({ label: 'Likes category: ' + c.likesCategory, cls: 'tag-likes' });
+    }
+    let dislikeNote = null;
+    if (c.dislikesCategory && normalize(c.dislikesCategory).includes(q)) {
+      dislikeNote = 'Dislikes category: ' + c.dislikesCategory;
+    }
+    if (hit.tiers.length > 0 || dislikeNote) {
+      hit.dislikeNote = dislikeNote;
+      matches.push(hit);
+    }
+  }
+  return matches;
+}
+
+function renderItemResults(query) {
+  const container = document.getElementById('item-results');
+  const matches = findMatches(query);
+  if (!query.trim()) {
+    container.innerHTML = '';
+    return;
+  }
+  if (matches.length === 0) {
+    container.innerHTML = '<p class="no-results">No candidate matches "' + escapeHtml(query) + '".</p>';
+    return;
+  }
+  container.innerHTML = matches.map(function (m) {
+    const tagsHtml = m.tiers.map(function (t) {
+      return '<span class="tag ' + t.cls + '">' + escapeHtml(t.label) + '</span>';
+    }).join('');
+    const dislikeHtml = m.dislikeNote ? '<div class="section">' + escapeHtml(m.dislikeNote) + '</div>' : '';
+    return '<div class="result-card"><h3>' + escapeHtml(m.name) + '</h3><div class="section">' + tagsHtml + '</div>' + dislikeHtml + '</div>';
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function renderCandidatePanel(name) {
+  const c = CANDIDATES.find(function (x) { return x.name === name; });
+  const container = document.getElementById('candidate-results');
+  if (!c) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML =
+    '<div class="result-card">' +
+    '<h3>' + escapeHtml(c.name) + '</h3>' +
+    '<div class="section"><span class="section-label">Favourite:</span>' + escapeHtml(c.favourite.join(', ')) + '</div>' +
+    '<div class="section"><span class="section-label">Loves:</span>' + escapeHtml(c.loves.join(', ')) + '</div>' +
+    '<div class="section"><span class="section-label">Likes:</span>' + escapeHtml(c.likes.join(', ')) + '</div>' +
+    '<div class="section"><span class="section-label">Likes category:</span>' + escapeHtml(c.likesCategory || '') + '</div>' +
+    '<div class="section"><span class="section-label">Dislikes category:</span>' + escapeHtml(c.dislikesCategory || '') + '</div>' +
+    '</div>';
+}
+
+function init() {
+  const itemInput = document.getElementById('item-input');
+  itemInput.addEventListener('input', function () {
+    renderItemResults(itemInput.value);
+  });
+
+  const select = document.getElementById('candidate-select');
+  select.innerHTML = CANDIDATES.map(function (c) {
+    return '<option value="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</option>';
+  }).join('');
+  select.addEventListener('change', function () {
+    renderCandidatePanel(select.value);
+  });
+  if (CANDIDATES.length > 0) {
+    renderCandidatePanel(CANDIDATES[0].name);
+  }
+
+  document.getElementById('source-note').innerHTML =
+    'Source: <a href="' + SOURCE_URL + '" target="_blank" rel="noopener">' + escapeHtml(SOURCE_NAME) + '</a>, fetched ' + FETCH_DATE + '. Candidate count: ' + CANDIDATES.length + '.';
+}
+
+init();
+</script>
+</body>
+</html>
